@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "brainstorming": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "8e99026256fdd857520640b72e0181221ae02bcba16bdb9d644191c1b1b3b9e4"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
