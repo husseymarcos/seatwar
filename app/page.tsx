@@ -1,19 +1,16 @@
-import { Button } from "@/components/ui/button"
+import { TeamRivalryGrid } from "@/components/rivalry/TeamRivalryGrid"
+import { MOCK_TEAM_RIVALRIES } from "@/lib/mvp/mock-rivalry"
 
 export default function Page() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
-      </div>
+    <div className="min-h-svh bg-zinc-950">
+      <div
+        className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_100%_80%_at_50%_100%,rgba(39,39,42,0.9),transparent_55%)]"
+        aria-hidden
+      />
+      <main className="relative mx-auto min-h-svh max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+        <TeamRivalryGrid seasonLabel="2025" cards={MOCK_TEAM_RIVALRIES} />
+      </main>
     </div>
   )
 }
