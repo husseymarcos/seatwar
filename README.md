@@ -1,21 +1,28 @@
-# Next.js template
+# SeatWar
 
-This is a Next.js template with shadcn/ui.
+A web app where F1 fans can see which driver is winning the rivalry with their teammate. Combines objective race statistics with community sentiment through voting.
 
-## Adding components
+## What it does
 
-To add components to your app, run the following command:
+SeatWar tracks intra-team battles in Formula 1 and shows who is ahead in each pairing. The leaderboard is built from:
+
+1. **Stats (OpenF1 API)** — Race results, qualifying, points, and other performance data from the [OpenF1 API](https://openf1.org/) to compute who is ahead on the track.
+2. **Community voting (paid feature)** — Users can vote on who they think is winning the rivalry. Votes are aggregated and combined with stats to reflect both results and fan opinion.
+
+## Tech stack
+
+- **Framework:** Next.js 16 (App Router)
+- **UI:** React 19, shadcn/ui, Tailwind CSS
+- **Data:** OpenF1 API for race statistics
+
+## Getting started
 
 ```bash
-npx shadcn@latest add button
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
 ```
 
-This will place the ui components in the `components` directory.
-
-## Using components
-
-To use the components in your app, import them as follows:
-
-```tsx
-import { Button } from "@/components/ui/button";
-```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
