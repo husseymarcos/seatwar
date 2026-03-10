@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|--------|
-| **Status** | todo |
+| **Status** | done |
 | **Priority** | high |
 | **PRD** | §3.1 (Display all current F1 teammate rivalries) |
 
@@ -12,9 +12,9 @@ Derive current F1 teammate pairings (e.g. Verstappen vs Hadjar, Hamilton vs Lecl
 
 ## Acceptance criteria
 
-- [ ] Teammate pairings derived from API (drivers per team per season/period)
-- [ ] List of “current” rivalries available to the app (e.g. current season or configurable period)
-- [ ] Data structure supports display and “who’s winning” computation per rivalry
+- [x] Teammate pairings derived from API (drivers per team per season/period)
+- [x] List of “current” rivalries available to the app (e.g. current season or configurable period)
+- [x] Data structure supports display and “who’s winning” computation per rivalry
 
 ## Notes
 

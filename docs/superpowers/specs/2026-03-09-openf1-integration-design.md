@@ -40,7 +40,7 @@ Usage / constraints:
 
 ### 3.1 Location & shape
 
-- Add `lib/openf1.ts` containing:
+- Add `lib/openf1/` (client + per-endpoint modules; no barrel file — import from each module) containing:
   - A generic `openF1Fetch<T>()` helper that:
     - Accepts an endpoint (e.g. `"/session_result"`), query params, and options (revalidate seconds, retries).
     - Builds the full URL, executes `fetch`, and parses JSON.
@@ -95,14 +95,14 @@ We intentionally **model only the fields we need**; additional fields returned b
    - Pros: explicit configuration object; easier to stub for tests.
    - Cons: more ceremony; less ergonomic in simple server components.
 
-We choose the **functional helper approach in `lib/openf1.ts`** for its simplicity and alignment with other small `lib/*` utilities. If the integration grows, we can later wrap these helpers in an `OpenF1Client` or add API routes without breaking existing call sites.
+We choose the **functional helper approach in `lib/openf1/`** for its simplicity and alignment with other small `lib/*` utilities. If the integration grows, we can later wrap these helpers in an `OpenF1Client` or add API routes without breaking existing call sites.
 
 ## 5. Usage sketch
 
 Example (server component or server utility):
 
 ```ts
-import { getChampionshipDrivers } from "@/lib/openf1";
+import { getChampionshipDrivers } from "@/lib/openf1/championship-drivers";
 
 const standings = await getChampionshipDrivers({
   sessionKey: "latest",
