@@ -5,6 +5,7 @@ This document summarises how SeatWar uses the [OpenF1 API](https://openf1.org/do
 ## Base configuration
 
 - **Base URL:** `https://api.openf1.org/v1`
+- **URL construction:** endpoints are passed as `/drivers`, `/sessions`, etc. The client must **not** use `new URL("/drivers", base)` with a base of `.../v1` without a trailing slash — that resolves to `https://api.openf1.org/drivers` and OpenF1 returns **400 Invalid route**. The shared client normalises base + path so every request hits `.../v1/<endpoint>`.
 - **Auth (MVP):** none required
   - Historical data (from 2023 onwards) is free and accessible without authentication.
   - Real‑time data requires a paid subscription; we **do not** use real‑time endpoints in MVP.
@@ -109,8 +110,9 @@ This keeps error semantics consistent across all callers and makes it easier to 
 Teammate pairings are **not** a dedicated OpenF1 endpoint. They are **derived** by:
 
 1. Calling `getDrivers({ sessionKey: "latest" })` (or a specific `session_key`).
-2. Grouping by `team_name` and keeping teams with exactly two drivers.
-3. Exposing the result as `TeammateRivalry[]` via `getTeammateRivalries()` / `getCurrentTeammateRivalries()` in `lib/teammate-rivalries.ts`.
+2. Grouping by `team_name`. If a team has **≥2** drivers (after dedupe by `driver_number`), the **two smallest `driver_number`** form one rivalry (OpenF1 may return more than two rows per team).
+3. Si no sale ninguna pareja, **fallback**: última sesión `Race` del año actual y del anterior → `getDrivers({ sessionKey })`.
+4. Exposing the result as `TeammateRivalry[]` via `getTeammateRivalries()` / `getCurrentTeammateRivalries()` in `lib/teammate-rivalries.ts`.
 
 Each rivalry includes `driverA` / `driverB` with `driverNumber` so the app can call `getChampionshipDrivers({ sessionKey, driverNumbers })` to compute who is ahead on points.
 

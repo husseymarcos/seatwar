@@ -48,13 +48,21 @@ function appendSearchParams(url: URL, params: Record<string, QueryValue>) {
   }
 }
 
+function openF1Url(endpoint: string): URL {
+  const base = OPENF1_BASE_URL.endsWith("/")
+    ? OPENF1_BASE_URL
+    : `${OPENF1_BASE_URL}/`;
+  const path = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
+  return new URL(path, base);
+}
+
 export async function openF1Fetch<T>(
   endpoint: string,
   options: OpenF1FetchOptions = {},
 ): Promise<T> {
   const { searchParams, revalidate = 60, retries = 2 } = options;
 
-  const url = new URL(endpoint, OPENF1_BASE_URL);
+  const url = openF1Url(endpoint);
   if (searchParams) {
     appendSearchParams(url, searchParams);
   }

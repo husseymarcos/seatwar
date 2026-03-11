@@ -1,4 +1,4 @@
-import type { TeamRivalryCard as TeamRivalryCardData } from "@/lib/mvp/mock-rivalry"
+import type { TeamRivalryCard as TeamRivalryCardData } from "@/lib/rivalry/team-rivalry-card"
 import { TeamRivalryCard } from "@/components/rivalry/TeamRivalryCard"
 
 export function TeamRivalryGrid({
@@ -25,15 +25,24 @@ export function TeamRivalryGrid({
         </h1>
       </header>
 
-      {/* 2×2 style: two columns only — each card gets ~half width so they read much larger */}
-      <div
-        className="mx-auto grid max-w-5xl grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8"
-        style={{ fontFamily: "var(--font-sans)" }}
-      >
-        {cards.map((card) => (
-          <TeamRivalryCard key={card.teamId} card={card} />
-        ))}
-      </div>
+      {cards.length === 0 ? (
+        <div className="rounded-3xl border border-white/10 bg-zinc-900/40 px-6 py-12 text-center backdrop-blur-sm">
+          <p className="text-zinc-400">
+            No hay rivalidades de equipo disponibles. OpenF1 no devolvió al menos dos pilotos por
+            equipo en la sesión usada, o no se pudo calcular ninguna tarjeta. Prueba más tarde o
+            revisa la consola/red.
+          </p>
+        </div>
+      ) : (
+        <div
+          className="mx-auto grid max-w-5xl grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8"
+          style={{ fontFamily: "var(--font-sans)" }}
+        >
+          {cards.map((card) => (
+            <TeamRivalryCard key={card.teamId} card={card} />
+          ))}
+        </div>
+      )}
     </section>
   )
 }

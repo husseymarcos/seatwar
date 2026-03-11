@@ -1,4 +1,4 @@
-import type { TeamRivalryCard as TeamRivalryCardData } from "@/lib/mvp/mock-rivalry"
+import type { TeamRivalryCard as TeamRivalryCardData } from "@/lib/rivalry/team-rivalry-card"
 import { cn } from "@/lib/utils"
 
 function ThinSplitBar({

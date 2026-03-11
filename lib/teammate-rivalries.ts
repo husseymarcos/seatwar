@@ -1,5 +1,6 @@
 import type { SessionKey } from "@/lib/openf1/client";
 import { getDrivers, type OpenF1Driver } from "@/lib/openf1/drivers";
+import { getSessions } from "@/lib/openf1/sessions";
 
 export interface RivalryDriver {
   driverNumber: number;
@@ -42,11 +43,8 @@ function buildRivalriesFromDrivers(drivers: OpenF1Driver[]): TeammateRivalry[] {
   for (const d of drivers) {
     const key = d.team_name;
     const list = byTeam.get(key);
-    if (list) {
-      list.push(d);
-    } else {
-      byTeam.set(key, [d]);
-    }
+    if (list) list.push(d);
+    else byTeam.set(key, [d]);
   }
 
   const rivalries: TeammateRivalry[] = [];
@@ -60,12 +58,11 @@ function buildRivalriesFromDrivers(drivers: OpenF1Driver[]): TeammateRivalry[] {
       (a, b) => a.driver_number - b.driver_number,
     );
 
-    if (roster.length !== 2) {
-      continue;
-    }
+    if (roster.length < 2) continue;
 
-    const [first, second] = roster;
-    const teamColour = first.team_colour;
+    const first = roster[0];
+    const second = roster[1];
+    const teamColour = first.team_colour || "#71717a";
 
     rivalries.push({
       id: `${teamName}-${first.driver_number}-${second.driver_number}`,
@@ -81,22 +78,46 @@ function buildRivalriesFromDrivers(drivers: OpenF1Driver[]): TeammateRivalry[] {
   rivalries.sort((a, b) => a.teamName.localeCompare(b.teamName));
   return rivalries;
 }
-  
+
+function parseDateStart(iso: string): number {
+  return new Date(iso).getTime();
+}
+
+async function latestRaceSessionKey(
+  year: number,
+  behavior: { revalidate?: number; retries?: number },
+): Promise<number | null> {
+  const sessions = await getSessions({ year, sessionType: "Race" }, behavior);
+  if (sessions.length === 0) return null;
+  const sorted = [...sessions].sort(
+    (a, b) => parseDateStart(a.date_start) - parseDateStart(b.date_start),
+  );
+  const last = sorted[sorted.length - 1];
+  return last?.session_key ?? null;
+}
+
 export async function getTeammateRivalries(
   options: GetTeammateRivalriesOptions = {},
 ): Promise<TeammateRivalry[]> {
   const { sessionKey = "latest", meetingKey, revalidate, retries } = options;
+  const behavior = { revalidate, retries };
 
-  const drivers = await getDrivers(
-    { sessionKey, meetingKey },
-    { revalidate, retries },
-  );
+  let drivers = await getDrivers({ sessionKey, meetingKey }, behavior);
 
-  if (drivers.length === 0) {
-    return [];
+  let rivalries = buildRivalriesFromDrivers(drivers);
+
+  if (rivalries.length === 0) {
+    const year = new Date().getFullYear();
+    for (const y of [year, year - 1]) {
+      const raceKey = await latestRaceSessionKey(y, behavior);
+      if (raceKey == null) continue;
+      drivers = await getDrivers({ sessionKey: raceKey, meetingKey }, behavior);
+      rivalries = buildRivalriesFromDrivers(drivers);
+      if (rivalries.length > 0) break;
+    }
   }
 
-  return buildRivalriesFromDrivers(drivers);
+  return rivalries;
 }
 
 export async function getCurrentTeammateRivalries(
