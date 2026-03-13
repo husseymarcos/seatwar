@@ -1,6 +1,6 @@
 import type { SessionKey } from "@/lib/openf1/client";
 import { getDrivers, type OpenF1Driver } from "@/lib/openf1/drivers";
-import { getSessions } from "@/lib/openf1/sessions";
+import { getSessions, latestRaceSessionKey } from "@/lib/openf1/sessions";
 
 export interface RivalryDriver {
   driverNumber: number;
@@ -30,10 +30,10 @@ export type GetTeammateRivalriesOptions = {
 function toRivalryDriver(d: OpenF1Driver): RivalryDriver {
   return {
     driverNumber: d.driver_number,
-    fullName: d.full_name,
-    nameAcronym: d.name_acronym,
-    broadcastName: d.broadcast_name,
-    headshotUrl: d.headshot_url,
+    fullName: d.full_name ?? "",
+    nameAcronym: d.name_acronym ?? "",
+    broadcastName: d.broadcast_name ?? "",
+    headshotUrl: d.headshot_url ?? "",
   };
 }
 
@@ -41,7 +41,7 @@ function buildRivalriesFromDrivers(drivers: OpenF1Driver[]): TeammateRivalry[] {
   const byTeam = new Map<string, OpenF1Driver[]>();
 
   for (const d of drivers) {
-    const key = d.team_name;
+    const key = d.team_name ?? "Unknown";
     const list = byTeam.get(key);
     if (list) list.push(d);
     else byTeam.set(key, [d]);
@@ -68,8 +68,8 @@ function buildRivalriesFromDrivers(drivers: OpenF1Driver[]): TeammateRivalry[] {
       id: `${teamName}-${first.driver_number}-${second.driver_number}`,
       teamName,
       teamColour,
-      sessionKey: first.session_key,
-      meetingKey: first.meeting_key,
+      sessionKey: first.session_key ?? 0,
+      meetingKey: first.meeting_key ?? 0,
       driverA: toRivalryDriver(first),
       driverB: toRivalryDriver(second),
     });
@@ -77,23 +77,6 @@ function buildRivalriesFromDrivers(drivers: OpenF1Driver[]): TeammateRivalry[] {
 
   rivalries.sort((a, b) => a.teamName.localeCompare(b.teamName));
   return rivalries;
-}
-
-function parseDateStart(iso: string): number {
-  return new Date(iso).getTime();
-}
-
-async function latestRaceSessionKey(
-  year: number,
-  behavior: { revalidate?: number; retries?: number },
-): Promise<number | null> {
-  const sessions = await getSessions({ year, sessionType: "Race" }, behavior);
-  if (sessions.length === 0) return null;
-  const sorted = [...sessions].sort(
-    (a, b) => parseDateStart(a.date_start) - parseDateStart(b.date_start),
-  );
-  const last = sorted[sorted.length - 1];
-  return last?.session_key ?? null;
 }
 
 export interface GetTeammateRivalriesResult {
@@ -106,22 +89,35 @@ export async function getTeammateRivalries(
 ): Promise<GetTeammateRivalriesResult> {
   const { sessionKey = "latest", meetingKey, revalidate, retries } = options;
   const behavior = { revalidate, retries };
-
   const currentYear = new Date().getFullYear();
 
-  let drivers = await getDrivers({ sessionKey, meetingKey }, behavior);
+  let resolvedSessionKey = sessionKey;
+  let resolvedYear = currentYear;
+
+  if (sessionKey === "latest") {
+    for (const y of [currentYear, currentYear - 1]) {
+      const raceKey = await latestRaceSessionKey(y, behavior);
+      if (raceKey) {
+        resolvedSessionKey = raceKey;
+        resolvedYear = y;
+        break;
+      }
+    }
+  }
+
+  let drivers = await getDrivers(
+    { sessionKey: resolvedSessionKey, meetingKey },
+    behavior,
+  );
   let rivalries = buildRivalriesFromDrivers(drivers);
 
   if (rivalries.length > 0) {
-    // If we have rivalries from "latest", we should ideally know the year.
-    // We can pick it from the first driver's session if we fetch it, 
-    // but for now let's assume current year or fallback if needed.
-    // A better approach is to always have a year.
-    return { rivalries, year: currentYear };
+    return { rivalries, year: resolvedYear };
   }
 
-  // Fallback to previous years if "latest" returned nothing
   for (const y of [currentYear, currentYear - 1]) {
+    if (y === resolvedYear && sessionKey === "latest") continue;
+
     const raceKey = await latestRaceSessionKey(y, behavior);
     if (raceKey == null) continue;
     drivers = await getDrivers({ sessionKey: raceKey, meetingKey }, behavior);

@@ -30,3 +30,17 @@ export async function getSessions(
     ...behavior,
   });
 }
+
+export async function latestRaceSessionKey(
+  year: number,
+  behavior: BehaviorOptions = {},
+): Promise<number | null> {
+  const sessions = await getSessions({ year, sessionType: "Race" }, behavior);
+  if (sessions.length === 0) return null;
+  const sorted = [...sessions].sort(
+    (a, b) =>
+      new Date(a.date_start ?? "").getTime() -
+      new Date(b.date_start ?? "").getTime(),
+  );
+  return sorted[sorted.length - 1].session_key;
+}

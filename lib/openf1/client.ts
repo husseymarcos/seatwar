@@ -65,9 +65,12 @@ export class OpenF1Client {
 
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
+        console.log(`OpenF1 Request: ${url.toString()} (attempt ${attempt + 1})`);
         const response = await fetch(url.toString(), {
           next: { revalidate },
         });
+
+        console.log(`OpenF1 Response: ${response.status} ${response.statusText}`);
 
         if (!response.ok) {
           if (response.status >= 500 && attempt < retries) {
@@ -95,6 +98,9 @@ export class OpenF1Client {
 
         const validation = schema.safeParse(json);
         if (!validation.success) {
+          console.error("OpenF1 Validation Error for:", url.toString());
+          console.error("Issues:", JSON.stringify(validation.error.issues, null, 2));
+          console.error("Raw Data (first item):", JSON.stringify(Array.isArray(json) ? json[0] : json, null, 2));
           throw new OpenF1Error(
             "OpenF1 response failed validation",
             "VALIDATION",
@@ -108,6 +114,7 @@ export class OpenF1Client {
         if (err instanceof OpenF1Error) throw err;
 
         if (attempt === retries) {
+          console.error("OpenF1 Network Error:", err);
           throw new OpenF1Error("Failed to reach OpenF1 API", "NETWORK", undefined, err);
         }
 

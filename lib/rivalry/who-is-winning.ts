@@ -3,7 +3,7 @@ import type { SessionResultRow } from "@/lib/openf1/session-result";
 import type { SessionSummary } from "@/lib/openf1/sessions";
 import { getChampionshipDrivers } from "@/lib/openf1/championship-drivers";
 import { getSessionResults } from "@/lib/openf1/session-result";
-import { getSessions } from "@/lib/openf1/sessions";
+import { getSessions, latestRaceSessionKey } from "@/lib/openf1/sessions";
 import type { BehaviorOptions } from "@/lib/openf1/client";
 
 export type RivalrySide = "A" | "B" | "tie";
@@ -47,14 +47,14 @@ function pickPointsByDriver(
   }
   const latest = (rows: ChampionshipDriverStanding[]) =>
     rows.reduce((best, r) =>
-      r.session_key > best.session_key ? r : best,
+      (r.session_key ?? 0) > (best.session_key ?? 0) ? r : best,
     rows[0]);
 
   const rowsA = byDriver.get(driverA);
   const rowsB = byDriver.get(driverB);
   return {
-    a: rowsA ? latest(rowsA).points_current : null,
-    b: rowsB ? latest(rowsB).points_current : null,
+    a: rowsA ? latest(rowsA).points_current ?? 0 : null,
+    b: rowsB ? latest(rowsB).points_current ?? 0 : null,
   };
 }
 
@@ -76,7 +76,7 @@ const UNCLASSIFIED_POSITION = 999;
 
 function effectivePosition(row: SessionResultRow): number {
   if (row.dnf || row.dns || row.dsq) return UNCLASSIFIED_POSITION;
-  return row.position;
+  return row.position ?? UNCLASSIFIED_POSITION;
 }
 
 export function headToHeadOneSession(
@@ -208,7 +208,7 @@ export function winSharesFromWhoIsWinning(
 }
 
 function parseDateStart(s: SessionSummary): number {
-  return new Date(s.date_start).getTime();
+  return new Date(s.date_start ?? "").getTime();
 }
 
 export function selectRaceSessionKeys(
@@ -246,13 +246,14 @@ export function qualifyingSessionKeysForMeetings(
   meetingKeys: Set<number>,
 ): number[] {
   const quali = allSessions.filter(
-    (s) => s.session_type === "Qualifying" && meetingKeys.has(s.meeting_key),
+    (s) => s.session_type === "Qualifying" && meetingKeys.has(s.meeting_key ?? 0),
   );
   const byMeeting = new Map<number, SessionSummary>();
   for (const s of quali) {
-    const existing = byMeeting.get(s.meeting_key);
+    const meetingKey = s.meeting_key ?? 0;
+    const existing = byMeeting.get(meetingKey);
     if (!existing || parseDateStart(s) < parseDateStart(existing)) {
-      byMeeting.set(s.meeting_key, s);
+      byMeeting.set(meetingKey, s);
     }
   }
   return Array.from(byMeeting.values())
@@ -294,14 +295,28 @@ export async function getWhoIsWinning(
   const meetingKeys = new Set<number>();
   for (const key of raceKeys) {
     const session = allSessions.find((s) => s.session_key === key);
-    if (session) meetingKeys.add(session.meeting_key);
+    if (session && session.meeting_key) meetingKeys.add(session.meeting_key);
   }
   const qualKeys = qualifyingSessionKeysForMeetings(allSessions, meetingKeys);
+
+  let standingsSessionKey: number | "latest" = "latest";
+  if (scope.mode === "season") {
+    const key = await latestRaceSessionKey(scope.year, behavior);
+    if (key) standingsSessionKey = key;
+  } else {
+    const key = await latestRaceSessionKey(currentYear, behavior);
+    if (key) {
+      standingsSessionKey = key;
+    } else {
+      const prevKey = await latestRaceSessionKey(currentYear - 1, behavior);
+      if (prevKey) standingsSessionKey = prevKey;
+    }
+  }
 
   const [standings, ...raceResults] = await Promise.all([
     getChampionshipDrivers(
       {
-        sessionKey: "latest",
+        sessionKey: standingsSessionKey,
         driverNumbers: [driverNumberA, driverNumberB],
       },
       behavior,
