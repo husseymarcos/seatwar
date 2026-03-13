@@ -1,19 +1,8 @@
-import {
-  openF1Fetch,
-  type BehaviorOptions,
-  type QueryValue,
-  type SessionKey,
-} from "@/lib/openf1/client";
+import { z } from "zod";
+import { openF1, type BehaviorOptions, type QueryValue, type SessionKey } from "@/lib/openf1/client";
+import { ChampionshipDriverStandingSchema } from "@/lib/openf1/schemas";
 
-export interface ChampionshipDriverStanding {
-  driver_number: number;
-  meeting_key: number;
-  points_current: number;
-  points_start: number;
-  position_current: number;
-  position_start: number;
-  session_key: number;
-}
+export type ChampionshipDriverStanding = z.infer<typeof ChampionshipDriverStandingSchema>;
 
 export type GetChampionshipDriversParams = {
   sessionKey?: SessionKey;
@@ -28,21 +17,12 @@ export async function getChampionshipDrivers(
   const { sessionKey, meetingKey, driverNumbers } = params;
   const searchParams: Record<string, QueryValue> = {};
 
-  if (sessionKey !== undefined) {
-    searchParams.session_key = sessionKey;
-  }
+  if (sessionKey !== undefined) searchParams.session_key = sessionKey;
+  if (meetingKey !== undefined) searchParams.meeting_key = meetingKey;
+  if (driverNumbers && driverNumbers.length > 0) searchParams.driver_number = driverNumbers;
 
-  if (meetingKey !== undefined) {
-    searchParams.meeting_key = meetingKey;
-  }
-
-  if (driverNumbers && driverNumbers.length > 0) {
-    searchParams.driver_number = driverNumbers;
-  }
-
-  return openF1Fetch<ChampionshipDriverStanding[]>("/championship_drivers", {
+  return openF1.fetch("/championship_drivers", z.array(ChampionshipDriverStandingSchema), {
     searchParams,
-    revalidate: behavior.revalidate,
-    retries: behavior.retries,
+    ...behavior,
   });
 }

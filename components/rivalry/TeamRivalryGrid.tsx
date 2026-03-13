@@ -28,9 +28,9 @@ export function TeamRivalryGrid({
       {cards.length === 0 ? (
         <div className="rounded-3xl border border-white/10 bg-zinc-900/40 px-6 py-12 text-center backdrop-blur-sm">
           <p className="text-zinc-400">
-            No hay rivalidades de equipo disponibles. OpenF1 no devolvió al menos dos pilotos por
-            equipo en la sesión usada, o no se pudo calcular ninguna tarjeta. Prueba más tarde o
-            revisa la consola/red.
+            No team rivalries available. OpenF1 did not return at least two drivers per team for the
+            given session, or no cards could be computed. Please try again later or check the
+            console/network.
           </p>
         </div>
       ) : (

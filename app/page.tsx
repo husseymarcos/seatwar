@@ -14,14 +14,16 @@ export default async function Page() {
   let errorMessage: string | null = null
 
   try {
-    const rivalries = await getTeammateRivalries({
+    const { rivalries, year } = await getTeammateRivalries({
       sessionKey: "latest",
       revalidate: 60,
     })
+    seasonLabel = String(year)
+
     if (rivalries.length > 0) {
       cards = await buildTeamRivalryCardsFromOpenF1(rivalries, {
         mode: "season",
-        year: DEFAULT_SCOPE_YEAR,
+        year,
       })
     }
   } catch (e) {
@@ -30,7 +32,7 @@ export default async function Page() {
     } else if (e instanceof Error) {
       errorMessage = e.message
     } else {
-      errorMessage = "Error al cargar datos de OpenF1."
+      errorMessage = "Error loading OpenF1 data."
     }
   }
 
@@ -58,7 +60,7 @@ export default async function Page() {
               </h1>
             </header>
             <div className="rounded-3xl border border-red-500/20 bg-red-950/20 px-6 py-8 text-center">
-              <p className="font-medium text-red-200">No se pudieron cargar los datos</p>
+              <p className="font-medium text-red-200">Could not load data</p>
               <p className="mt-2 text-sm text-zinc-400">{errorMessage}</p>
             </div>
           </section>

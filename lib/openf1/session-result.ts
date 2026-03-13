@@ -1,22 +1,8 @@
-import {
-  openF1Fetch,
-  type BehaviorOptions,
-  type QueryValue,
-  type SessionKey,
-} from "@/lib/openf1/client";
+import { z } from "zod";
+import { openF1, type BehaviorOptions, type QueryValue, type SessionKey } from "@/lib/openf1/client";
+import { SessionResultRowSchema } from "@/lib/openf1/schemas";
 
-export interface SessionResultRow {
-  dnf: boolean;
-  dns: boolean;
-  dsq: boolean;
-  driver_number: number;
-  duration: number | null;
-  gap_to_leader: number | null;
-  number_of_laps: number;
-  meeting_key: number;
-  position: number;
-  session_key: number;
-}
+export type SessionResultRow = z.infer<typeof SessionResultRowSchema>;
 
 export type GetSessionResultsParams = {
   sessionKey: SessionKey;
@@ -33,17 +19,11 @@ export async function getSessionResults(
     session_key: sessionKey,
   };
 
-  if (positionLte !== undefined) {
-    searchParams["position<="] = positionLte;
-  }
+  if (positionLte !== undefined) searchParams["position<="] = positionLte;
+  if (positionGte !== undefined) searchParams["position>="] = positionGte;
 
-  if (positionGte !== undefined) {
-    searchParams["position>="] = positionGte;
-  }
-
-  return openF1Fetch<SessionResultRow[]>("/session_result", {
+  return openF1.fetch("/session_result", z.array(SessionResultRowSchema), {
     searchParams,
-    revalidate: behavior.revalidate,
-    retries: behavior.retries,
+    ...behavior,
   });
 }

@@ -1,118 +1,135 @@
+import { z } from "zod";
+
 export const OPENF1_BASE_URL = "https://api.openf1.org/v1";
+
+export type OpenF1ErrorCode = "NETWORK" | "HTTP" | "DECODE" | "VALIDATION";
+
+export class OpenF1Error extends Error {
+  constructor(
+    message: string,
+    public readonly code: OpenF1ErrorCode,
+    public readonly status?: number,
+    public readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = "OpenF1Error";
+  }
+}
 
 type QueryPrimitive = string | number | boolean;
 export type QueryValue = QueryPrimitive | QueryPrimitive[];
 
-export type OpenF1ErrorCode = "NETWORK" | "HTTP" | "DECODE";
-
-export class OpenF1Error extends Error {
-  readonly code: OpenF1ErrorCode;
-  readonly status?: number;
-  readonly cause?: unknown;
-
-  constructor(message: string, code: OpenF1ErrorCode, status?: number, cause?: unknown) {
-    super(message);
-    this.name = "OpenF1Error";
-    this.code = code;
-    this.status = status;
-    this.cause = cause;
-  }
-}
-
-export type OpenF1FetchOptions = {
+export type FetchOptions = {
   searchParams?: Record<string, QueryValue>;
   revalidate?: number;
   retries?: number;
 };
 
-export type BehaviorOptions = {
-  revalidate?: number;
-  retries?: number;
-};
+export type BehaviorOptions = Pick<FetchOptions, "revalidate" | "retries">;
 
 export type SessionKey = number | "latest";
 
-async function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function appendSearchParams(url: URL, params: Record<string, QueryValue>) {
-  for (const [key, value] of Object.entries(params)) {
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        url.searchParams.append(key, String(item));
+export class OpenF1Client {
+  private readonly baseUrl: string;
+
+  constructor(baseUrl: string = OPENF1_BASE_URL) {
+    this.baseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+  }
+
+  private buildUrl(endpoint: string, params?: Record<string, QueryValue>): URL {
+    const path = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
+    const url = new URL(path, this.baseUrl);
+
+    if (params) {
+      for (const [key, value] of Object.entries(params)) {
+        if (Array.isArray(value)) {
+          value.forEach((v) => url.searchParams.append(key, String(v)));
+        } else if (value !== undefined) {
+          url.searchParams.append(key, String(value));
+        }
       }
-    } else if (value !== undefined) {
-      url.searchParams.append(key, String(value));
     }
+
+    return url;
+  }
+
+  async fetch<T>(
+    endpoint: string,
+    schema: z.ZodType<T>,
+    options: FetchOptions = {},
+  ): Promise<T> {
+    const { searchParams, revalidate = 60, retries = 2 } = options;
+    const url = this.buildUrl(endpoint, searchParams);
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const response = await fetch(url.toString(), {
+          next: { revalidate },
+        });
+
+        if (!response.ok) {
+          if (response.status >= 500 && attempt < retries) {
+            await sleep(200 * Math.pow(2, attempt));
+            continue;
+          }
+
+          const errorBody = await response.text().catch(() => "");
+          throw new OpenF1Error(
+            `OpenF1 HTTP error ${response.status}`,
+            "HTTP",
+            response.status,
+            errorBody || undefined,
+          );
+        }
+
+        const json = await response.json().catch((err) => {
+          throw new OpenF1Error(
+            "Failed to parse OpenF1 response as JSON",
+            "DECODE",
+            response.status,
+            err,
+          );
+        });
+
+        const validation = schema.safeParse(json);
+        if (!validation.success) {
+          throw new OpenF1Error(
+            "OpenF1 response failed validation",
+            "VALIDATION",
+            response.status,
+            validation.error,
+          );
+        }
+
+        return validation.data;
+      } catch (err) {
+        if (err instanceof OpenF1Error) throw err;
+
+        if (attempt === retries) {
+          throw new OpenF1Error("Failed to reach OpenF1 API", "NETWORK", undefined, err);
+        }
+
+        await sleep(200 * Math.pow(2, attempt));
+      }
+    }
+
+    throw new OpenF1Error("Unexpected error in OpenF1 fetch", "NETWORK");
   }
 }
 
-function openF1Url(endpoint: string): URL {
-  const base = OPENF1_BASE_URL.endsWith("/")
-    ? OPENF1_BASE_URL
-    : `${OPENF1_BASE_URL}/`;
-  const path = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
-  return new URL(path, base);
-}
+export const openF1 = new OpenF1Client();
 
 export async function openF1Fetch<T>(
   endpoint: string,
-  options: OpenF1FetchOptions = {},
+  options: FetchOptions = {},
 ): Promise<T> {
   const { searchParams, revalidate = 60, retries = 2 } = options;
-
-  const url = openF1Url(endpoint);
-  if (searchParams) {
-    appendSearchParams(url, searchParams);
-  }
-
-  let attempt = 0;
-
-  while (true) {
-    try {
-      const response = await fetch(url.toString(), {
-        next: { revalidate },
-      });
-
-      if (response.status >= 500 && attempt < retries) {
-        attempt += 1;
-        await sleep(200 * 2 ** (attempt - 1));
-        continue;
-      }
-
-      if (!response.ok) {
-        const text = await response.text().catch(() => "");
-
-        throw new OpenF1Error(
-          `OpenF1 HTTP error ${response.status}`,
-          "HTTP",
-          response.status,
-          text || undefined,
-        );
-      }
-
-      try {
-        return (await response.json()) as T;
-      } catch (err) {
-        throw new OpenF1Error(
-          "Failed to parse OpenF1 response as JSON",
-          "DECODE",
-          response.status,
-          err,
-        );
-      }
-    } catch (err) {
-      if (err instanceof OpenF1Error) {
-        throw err;
-      }
-
-      if (attempt >= retries) {
-        throw new OpenF1Error("Failed to reach OpenF1 API", "NETWORK", undefined, err);
-      }
-
-      attempt += 1;
-      await sleep(200 * 2 ** (attempt - 1));
-    }
-  }
+  const client = new OpenF1Client();
+  return client.fetch(endpoint, z.any() as z.ZodType<T>, {
+    searchParams,
+    revalidate,
+    retries,
+  });
 }

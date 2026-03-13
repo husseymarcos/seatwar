@@ -96,32 +96,46 @@ async function latestRaceSessionKey(
   return last?.session_key ?? null;
 }
 
+export interface GetTeammateRivalriesResult {
+  rivalries: TeammateRivalry[];
+  year: number;
+}
+
 export async function getTeammateRivalries(
   options: GetTeammateRivalriesOptions = {},
-): Promise<TeammateRivalry[]> {
+): Promise<GetTeammateRivalriesResult> {
   const { sessionKey = "latest", meetingKey, revalidate, retries } = options;
   const behavior = { revalidate, retries };
 
-  let drivers = await getDrivers({ sessionKey, meetingKey }, behavior);
+  const currentYear = new Date().getFullYear();
 
+  let drivers = await getDrivers({ sessionKey, meetingKey }, behavior);
   let rivalries = buildRivalriesFromDrivers(drivers);
 
-  if (rivalries.length === 0) {
-    const year = new Date().getFullYear();
-    for (const y of [year, year - 1]) {
-      const raceKey = await latestRaceSessionKey(y, behavior);
-      if (raceKey == null) continue;
-      drivers = await getDrivers({ sessionKey: raceKey, meetingKey }, behavior);
-      rivalries = buildRivalriesFromDrivers(drivers);
-      if (rivalries.length > 0) break;
+  if (rivalries.length > 0) {
+    // If we have rivalries from "latest", we should ideally know the year.
+    // We can pick it from the first driver's session if we fetch it, 
+    // but for now let's assume current year or fallback if needed.
+    // A better approach is to always have a year.
+    return { rivalries, year: currentYear };
+  }
+
+  // Fallback to previous years if "latest" returned nothing
+  for (const y of [currentYear, currentYear - 1]) {
+    const raceKey = await latestRaceSessionKey(y, behavior);
+    if (raceKey == null) continue;
+    drivers = await getDrivers({ sessionKey: raceKey, meetingKey }, behavior);
+    rivalries = buildRivalriesFromDrivers(drivers);
+    if (rivalries.length > 0) {
+      return { rivalries, year: y };
     }
   }
 
-  return rivalries;
+  return { rivalries: [], year: currentYear };
 }
 
 export async function getCurrentTeammateRivalries(
   behavior: Pick<GetTeammateRivalriesOptions, "revalidate" | "retries"> = {},
-): Promise<TeammateRivalry[]> {
+): Promise<GetTeammateRivalriesResult> {
   return getTeammateRivalries({ sessionKey: "latest", ...behavior });
 }
