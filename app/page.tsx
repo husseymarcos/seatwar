@@ -1,8 +1,9 @@
 import { TeamRivalryGrid } from "@/components/rivalry/TeamRivalryGrid"
-import { buildTeamRivalryCardsFromOpenF1 } from "@/lib/rivalry/cards-from-rivalries"
-import { OpenF1Error } from "@/lib/openf1/client"
-import { getTeammateRivalries } from "@/lib/teammate-rivalries"
-import type { TeamRivalryCard } from "@/lib/rivalry/team-rivalry-card"
+import {
+  getTeamRivalryCards,
+  OpenF1Error,
+  type TeamRivalryCard,
+} from "@/lib/rivalry"
 
 const DEFAULT_SCOPE_YEAR = new Date().getFullYear()
 
@@ -14,18 +15,9 @@ export default async function Page() {
   let errorMessage: string | null = null
 
   try {
-    const { rivalries, year } = await getTeammateRivalries({
-      sessionKey: "latest",
-      revalidate: 60,
-    })
+    const { cards: fetchedCards, year } = await getTeamRivalryCards()
+    cards = fetchedCards
     seasonLabel = String(year)
-
-    if (rivalries.length > 0) {
-      cards = await buildTeamRivalryCardsFromOpenF1(rivalries, {
-        mode: "season",
-        year,
-      })
-    }
   } catch (e) {
     if (e instanceof OpenF1Error) {
       errorMessage = e.message + (e.status ? ` (${e.status})` : "")
