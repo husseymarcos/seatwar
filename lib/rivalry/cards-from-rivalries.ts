@@ -25,7 +25,7 @@ export async function buildTeamRivalryCardsFromOpenF1(
         behavior,
       )
       const shares = winSharesFromWhoIsWinning(who)
-      return { r, shares }
+      return { r, shares, who }
     }),
   )
 
@@ -33,7 +33,7 @@ export async function buildTeamRivalryCardsFromOpenF1(
   for (let i = 0; i < settled.length; i++) {
     const outcome = settled[i]
     if (outcome.status !== "fulfilled") continue
-    const { r, shares } = outcome.value
+    const { r, shares, who } = outcome.value
     cards.push({
       teamId: r.id,
       teamName: r.teamName,
@@ -44,10 +44,28 @@ export async function buildTeamRivalryCardsFromOpenF1(
       driverA: {
         shortName: r.driverA.nameAcronym || r.driverA.broadcastName,
         winShare: shares.driverA,
+        driverNumber: r.driverA.driverNumber,
       },
       driverB: {
         shortName: r.driverB.nameAcronym || r.driverB.broadcastName,
         winShare: shares.driverB,
+        driverNumber: r.driverB.driverNumber,
+      },
+      stats: {
+        points: {
+          driverA: who.breakdown?.points.driverA ?? 0,
+          driverB: who.breakdown?.points.driverB ?? 0,
+        },
+        raceFinishes: {
+          driverAWins: who.breakdown?.raceFinishes.driverAWins ?? 0,
+          driverBWins: who.breakdown?.raceFinishes.driverBWins ?? 0,
+          ties: who.breakdown?.raceFinishes.ties ?? 0,
+        },
+        qualifying: {
+          driverAWins: who.breakdown?.qualifying.driverAWins ?? 0,
+          driverBWins: who.breakdown?.qualifying.driverBWins ?? 0,
+          ties: who.breakdown?.qualifying.ties ?? 0,
+        },
       },
     })
   }

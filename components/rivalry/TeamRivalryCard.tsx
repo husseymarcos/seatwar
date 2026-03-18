@@ -1,3 +1,6 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import type { TeamRivalryCard as TeamRivalryCardData } from "@/lib/rivalry/team-rivalry-card"
 import { cn } from "@/lib/utils"
 
@@ -43,17 +46,35 @@ function ThinSplitBar({
   )
 }
 
-export function TeamRivalryCard({ card }: { card: TeamRivalryCardData }) {
+export function TeamRivalryCard({
+  card,
+  onClick,
+}: {
+  card: TeamRivalryCardData
+  onClick?: () => void
+}) {
   const { teamName, teamColor, driverA, driverB } = card
   const a = driverA.winShare
   const b = driverB.winShare
+  const [isBarReady, setIsBarReady] = useState(false)
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      setIsBarReady(true)
+    })
+    return () => window.cancelAnimationFrame(frameId)
+  }, [])
 
   return (
-    <article
+    <button
+      type="button"
+      onClick={onClick}
       className={cn(
-        "flex min-h-[160px] flex-col justify-center gap-5 rounded-3xl border border-white/5 bg-zinc-900/60 p-6 shadow-lg sm:min-h-[180px] sm:p-8",
-        "backdrop-blur-sm transition-shadow hover:border-white/10 hover:shadow-xl"
+        "flex min-h-[160px] w-full flex-col justify-center gap-5 rounded-3xl border border-white/5 bg-zinc-900/60 p-6 text-left shadow-lg sm:min-h-[180px] sm:p-8",
+        "backdrop-blur-sm transition-shadow hover:border-white/10 hover:shadow-xl",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
       )}
+      aria-label={`Open rivalry stats for ${teamName}`}
     >
       <div className="flex items-center gap-3">
         <span
@@ -66,7 +87,11 @@ export function TeamRivalryCard({ card }: { card: TeamRivalryCardData }) {
         </h2>
       </div>
 
-      <ThinSplitBar leftPct={a} rightPct={b} color={teamColor} />
+      <ThinSplitBar
+        leftPct={isBarReady ? a : 0}
+        rightPct={isBarReady ? b : 0}
+        color={teamColor}
+      />
 
       <div className="flex justify-between gap-4 text-sm sm:text-base">
         <div className="min-w-0 flex-1">
@@ -88,6 +113,6 @@ export function TeamRivalryCard({ card }: { card: TeamRivalryCardData }) {
           </span>
         </div>
       </div>
-    </article>
+    </button>
   )
 }
