@@ -90,30 +90,19 @@ export class OpenF1Client {
 
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        console.log(
-          `OpenF1 Request: ${url.toString()} (attempt ${attempt + 1})`
-        )
         const response = await fetch(url.toString(), {
           next: { revalidate },
         })
 
-        console.log(
-          `OpenF1 Response: ${response.status} ${response.statusText}`
-        )
-
         if (!response.ok) {
           // Handle 404 gracefully if allow404 is set
           if (response.status === 404 && options.allow404) {
-            console.log(`OpenF1 404 for ${url.toString()}, returning empty`)
             return [] as T
           }
 
           const isRetryable = response.status >= 500 || response.status === 429
           if (isRetryable && attempt < retries) {
             const delay = 1000 * Math.pow(2, attempt)
-            console.log(
-              `OpenF1 rate limit (429) or server error (${response.status}), retrying in ${delay}ms...`
-            )
             await sleep(delay)
             continue
           }
